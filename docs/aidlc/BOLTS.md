@@ -75,3 +75,21 @@ Ordered list of AI-DLC Bolts for Construction. Each Bolt = one mergeable change 
 ## Bolt 12 — Live XAUUSD Ticker via MT5-MCP
 
 **Status: DONE (2026-08-13).** Wired background polling coroutine in `LauncherViewModel` calling `get_symbol_info` tool via HTTP loopback at `127.0.0.1:3403/mcp` every 2 seconds. Displays active XAUUSD Bid price on the HomeScreen below the clock.
+
+---
+
+## Bolt 13 — Ambient Status Monitor Mode
+
+**Status: DONE (2026-08-13).** Configured a root pointer input touch wrapper in `MainActivity.kt` resetting a 30-second inactivity timer. When screen is always-on and inactive, enters Ambient Mode: hides search pill/primary icons, disables clock click listeners, and dims status line/ticker element opacity to 35% to prevent AMOLED screen burn-in. Resets immediately on touch.
+
+---
+
+## Bolt 14 — HomeScreen Sparkline Chart
+
+**Status: DONE (2026-08-13).** Integrated a Canvas-based 1-pixel stroke path sparkline drawing the last 50 bid price intervals of XAUUSD tick history below the analog clock.
+
+---
+
+## Bolt 15 — Algorithmic Position Alert Signal & Panic Close
+
+**Status: DONE (2026-08-13).** Expanded background polling flow in `LauncherViewModel` to fetch active trades from MT5-MCP `get_open_positions` tool. Displays real-time signal alert banner showing current direction, lot size, and open price. Bound a long press on the price ticker area to execute MT5-MCP `close_all_positions` for panic liquidations. Added `android.permission.INTERNET` to the Android manifest to authorize local network access.
