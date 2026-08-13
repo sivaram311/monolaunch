@@ -1,7 +1,9 @@
 package buzz.delena.monolaunch.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,11 +53,14 @@ import java.util.Locale
  * search pill that opens the App Drawer. Pure black background — no
  * wallpaper, no blur, flat surfaces only (AMOLED + 120Hz budget).
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     uiState: LauncherUiState,
     onOpenDrawer: () -> Unit,
     onLaunchApp: (AppInfo) -> Unit,
+    onVoiceSearch: () -> Unit,
+    onLongClickClock: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -65,7 +70,7 @@ fun HomeScreen(
             .padding(horizontal = 24.dp),
     ) {
         Spacer(modifier = Modifier.height(56.dp))
-        ClockAndStatus(batteryPercent = uiState.batteryPercent)
+        ClockAndStatus(batteryPercent = uiState.batteryPercent, onLongClickClock = onLongClickClock)
 
         Spacer(modifier = Modifier.weight(1f))
 
@@ -78,14 +83,23 @@ fun HomeScreen(
         )
 
         Spacer(modifier = Modifier.height(24.dp))
-        SearchPill(onOpenDrawer = onOpenDrawer)
+        SearchPill(onOpenDrawer = onOpenDrawer, onVoiceSearch = onVoiceSearch)
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ClockAndStatus(batteryPercent: Int) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+private fun ClockAndStatus(batteryPercent: Int, onLongClickClock: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = {},
+                onLongClick = onLongClickClock
+            )
+    ) {
         AnalogClock(size = 128.dp)
         Spacer(modifier = Modifier.height(16.dp))
         val dateText = SimpleDateFormat("EEE dd MMM", Locale.getDefault())
@@ -163,7 +177,7 @@ private fun RowScope.PrimaryIcon(
 }
 
 @Composable
-private fun SearchPill(onOpenDrawer: () -> Unit) {
+private fun SearchPill(onOpenDrawer: () -> Unit, onVoiceSearch: () -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -195,7 +209,8 @@ private fun SearchPill(onOpenDrawer: () -> Unit) {
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.08f)),
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .clickable { onVoiceSearch() },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(

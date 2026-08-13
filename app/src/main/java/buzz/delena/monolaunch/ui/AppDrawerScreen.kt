@@ -1,8 +1,10 @@
 package buzz.delena.monolaunch.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +36,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
@@ -60,11 +64,13 @@ private sealed class DrawerRow {
  * A-Z quick-scroll index on the trailing edge. Reached by swiping up from
  * Home or tapping its search pill (gesture owned by the caller).
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppDrawerScreen(
     uiState: LauncherUiState,
     onQueryChange: (String) -> Unit,
     onLaunchApp: (AppInfo) -> Unit,
+    onLongClickApp: (AppInfo) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -132,7 +138,7 @@ fun AppDrawerScreen(
                 modifier = Modifier.padding(bottom = 16.dp),
             ) {
                 items(uiState.frequentApps, key = { it.componentKey }) { app ->
-                    AppIconTile(app = app, onClick = { onLaunchApp(app) })
+                    AppIconTile(app = app, onClick = { onLaunchApp(app) }, onLongClick = { onLongClickApp(app) })
                 }
             }
         }
@@ -172,7 +178,7 @@ fun AppDrawerScreen(
                                 letterSpacing = 1.sp,
                                 modifier = Modifier.padding(start = 24.dp, top = 12.dp, bottom = 4.dp),
                             )
-                            is DrawerRow.Entry -> AppListItem(app = row.app, onClick = { onLaunchApp(row.app) })
+                            is DrawerRow.Entry -> AppListItem(app = row.app, onClick = { onLaunchApp(row.app) }, onLongClick = { onLongClickApp(row.app) })
                         }
                     }
                 }
@@ -229,17 +235,21 @@ private fun DrawerSearchField(query: String, onQueryChange: (String) -> Unit, mo
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AppIconTile(app: AppInfo, onClick: () -> Unit) {
+private fun AppIconTile(app: AppInfo, onClick: () -> Unit, onLongClick: () -> Unit) {
     val bitmap = remember(app.componentKey) { app.icon.toBitmap(width = 96, height = 96).asImageBitmap() }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(64.dp).clickable(onClick = onClick),
+        modifier = Modifier
+            .width(64.dp)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         Image(
             bitmap = bitmap,
             contentDescription = app.label,
             contentScale = ContentScale.Fit,
+            colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) }),
             modifier = Modifier.size(48.dp).clip(CircleShape),
         )
         Spacer(modifier = Modifier.height(6.dp))
@@ -254,13 +264,14 @@ private fun AppIconTile(app: AppInfo, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AppListItem(app: AppInfo, onClick: () -> Unit) {
+private fun AppListItem(app: AppInfo, onClick: () -> Unit, onLongClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 24.dp, vertical = 10.dp),
     ) {
         val bitmap = remember(app.componentKey) { app.icon.toBitmap(width = 96, height = 96).asImageBitmap() }
@@ -268,6 +279,7 @@ private fun AppListItem(app: AppInfo, onClick: () -> Unit) {
             bitmap = bitmap,
             contentDescription = null,
             contentScale = ContentScale.Fit,
+            colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) }),
             modifier = Modifier.size(40.dp).clip(CircleShape),
         )
         Spacer(modifier = Modifier.width(16.dp))

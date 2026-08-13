@@ -1,8 +1,8 @@
 # monolaunch — AI-DLC Inception Charter
 
-**Phase:** Inception (Day 1) → Construction (Bolt 1 done)
-**Status:** Builds successfully (`gradlew assembleDebug`, 2026-08-13 — see `BOLTS.md` Bolt 1). Not yet run on a real device.
-**Next phase:** Construction (remaining Bolts — device install/run is next, see `BOLTS.md` Bolt 3)
+**Phase:** Inception (Day 1) → Construction (Bolts 1-2, 4-10 done, Bolt 3 pending)
+**Status:** Builds successfully (`gradlew assembleDebug`, 2026-08-13 — see `BOLTS.md` Bolt 1). Features fully integrated, pending physical device verification.
+**Next phase:** Construction (Bolt 3 — physical-device install and verification checklist)
 
 ---
 
