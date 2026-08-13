@@ -95,6 +95,21 @@ private fun LauncherApp(viewModel: LauncherViewModel) {
         }
     }
 
+    var isAmbientMode by remember { mutableStateOf(false) }
+    var lastInteractionTime by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(lastInteractionTime, uiState.isScreenAlwaysOn) {
+        if (uiState.isScreenAlwaysOn) {
+            while (true) {
+                val elapsed = System.currentTimeMillis() - lastInteractionTime
+                isAmbientMode = elapsed >= 30000 // 30 seconds
+                kotlinx.coroutines.delay(1000)
+            }
+        } else {
+            isAmbientMode = false
+        }
+    }
+
     var totalHomeDragDown by remember { mutableStateOf(0f) }
     var hasTriggeredNotificationSwipe by remember { mutableStateOf(false) }
 
@@ -119,84 +134,102 @@ private fun LauncherApp(viewModel: LauncherViewModel) {
         label = "home-drawer-transition",
     )
 
-    BoxWithConstraints(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent()
+                        lastInteractionTime = System.currentTimeMillis()
+                        isAmbientMode = false
+                    }
+                }
+            }
     ) {
-        val heightPx = with(LocalDensity.current) { maxHeight.toPx() }
-
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectVerticalDragGestures(
-                        onDragStart = {
-                            isDragging = true
-                            totalHomeDragDown = 0f
-                            hasTriggeredNotificationSwipe = false
-                        },
-                        onVerticalDrag = { change, dragAmount ->
-                            change.consume()
-                            val current = viewModel.uiState.value.dragProgress
-                            if (current == 0f && dragAmount > 0f) {
-                                totalHomeDragDown += dragAmount
-                                if (totalHomeDragDown > 80f && !hasTriggeredNotificationSwipe) {
-                                    viewModel.expandNotifications(context)
-                                    hasTriggeredNotificationSwipe = true
-                                }
-                            } else {
-                                viewModel.updateDragProgress(current - dragAmount / heightPx)
-                            }
-                        },
-                        onDragEnd = {
-                            isDragging = false
-                            if (!hasTriggeredNotificationSwipe) {
-                                viewModel.settleDrag(viewModel.uiState.value.dragProgress > 0.3f)
-                            } else {
-                                viewModel.settleDrag(false)
-                            }
-                        },
-                        onDragCancel = {
-                            isDragging = false
-                            viewModel.settleDrag(viewModel.uiState.value.screen == LauncherScreen.DRAWER)
-                        },
-                    )
-                },
+                .background(Color.Black),
         ) {
-            HomeScreen(
-                uiState = uiState,
-                onOpenDrawer = viewModel::openDrawer,
-                onLaunchApp = viewModel::launchApp,
-                onVoiceSearch = {
-                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                        putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.voice_search_prompt))
-                    }
-                    runCatching {
-                        voiceSearchLauncher.launch(intent)
-                    }.onFailure {
-                        Toast.makeText(context, R.string.voice_search_prompt, Toast.LENGTH_SHORT).show()
-                    }
-                },
-                onLongClickClock = {
-                    showAboutDialog = true
-                },
-                onToggleScreenAlwaysOn = {
-                    viewModel.toggleScreenAlwaysOn(context)
-                },
-                modifier = Modifier.graphicsLayer { translationY = -animatedProgress * heightPx },
-            )
-            AppDrawerScreen(
-                uiState = uiState,
-                onQueryChange = viewModel::onSearchQueryChange,
-                onLaunchApp = viewModel::launchApp,
-                onLongClickApp = { app ->
-                    selectedAppForActions = app
-                },
-                onClose = viewModel::showHome,
-                modifier = Modifier.graphicsLayer { translationY = (1f - animatedProgress) * heightPx },
-            )
+            val heightPx = with(LocalDensity.current) { maxHeight.toPx() }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures(
+                            onDragStart = {
+                                isDragging = true
+                                totalHomeDragDown = 0f
+                                hasTriggeredNotificationSwipe = false
+                            },
+                            onVerticalDrag = { change, dragAmount ->
+                                change.consume()
+                                val current = viewModel.uiState.value.dragProgress
+                                if (current == 0f && dragAmount > 0f) {
+                                    totalHomeDragDown += dragAmount
+                                    if (totalHomeDragDown > 80f && !hasTriggeredNotificationSwipe) {
+                                        viewModel.expandNotifications(context)
+                                        hasTriggeredNotificationSwipe = true
+                                    }
+                                } else {
+                                    viewModel.updateDragProgress(current - dragAmount / heightPx)
+                                }
+                            },
+                            onDragEnd = {
+                                isDragging = false
+                                if (!hasTriggeredNotificationSwipe) {
+                                    viewModel.settleDrag(viewModel.uiState.value.dragProgress > 0.3f)
+                                } else {
+                                    viewModel.settleDrag(false)
+                                }
+                            },
+                            onDragCancel = {
+                                isDragging = false
+                                viewModel.settleDrag(viewModel.uiState.value.screen == LauncherScreen.DRAWER)
+                            },
+                        )
+                    },
+            ) {
+                HomeScreen(
+                    uiState = uiState,
+                    onOpenDrawer = viewModel::openDrawer,
+                    onLaunchApp = viewModel::launchApp,
+                    onVoiceSearch = {
+                        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.voice_search_prompt))
+                        }
+                        runCatching {
+                            voiceSearchLauncher.launch(intent)
+                        }.onFailure {
+                            Toast.makeText(context, R.string.voice_search_prompt, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onLongClickClock = {
+                        showAboutDialog = true
+                    },
+                    onToggleScreenAlwaysOn = {
+                        viewModel.toggleScreenAlwaysOn(context)
+                    },
+                    onPanicClose = {
+                        viewModel.panicClose(context)
+                    },
+                    isAmbientMode = isAmbientMode,
+                    modifier = Modifier.graphicsLayer { translationY = -animatedProgress * heightPx },
+                )
+                AppDrawerScreen(
+                    uiState = uiState,
+                    onQueryChange = viewModel::onSearchQueryChange,
+                    onLaunchApp = viewModel::launchApp,
+                    onLongClickApp = { app ->
+                        selectedAppForActions = app
+                    },
+                    onClose = viewModel::showHome,
+                    modifier = Modifier.graphicsLayer { translationY = (1f - animatedProgress) * heightPx },
+                )
+            }
         }
     }
 

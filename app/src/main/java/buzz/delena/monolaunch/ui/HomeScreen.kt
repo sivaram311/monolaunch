@@ -1,7 +1,9 @@
 package buzz.delena.monolaunch.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,7 +38,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -64,8 +69,11 @@ fun HomeScreen(
     onVoiceSearch: () -> Unit,
     onLongClickClock: () -> Unit,
     onToggleScreenAlwaysOn: () -> Unit,
+    onPanicClose: () -> Unit,
+    isAmbientMode: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    val contentAlpha = if (isAmbientMode) 0.35f else 1.0f
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -73,27 +81,34 @@ fun HomeScreen(
             .padding(horizontal = 24.dp),
     ) {
         Spacer(modifier = Modifier.height(56.dp))
-        ClockAndStatus(
-            batteryPercent = uiState.batteryPercent,
-            onLongClickClock = onLongClickClock,
-            isScreenAlwaysOn = uiState.isScreenAlwaysOn,
-            onToggleScreenAlwaysOn = onToggleScreenAlwaysOn,
-            xauusdPrice = uiState.xauusdPrice
-        )
+        Box(modifier = Modifier.graphicsLayer { alpha = contentAlpha }) {
+            ClockAndStatus(
+                batteryPercent = uiState.batteryPercent,
+                onLongClickClock = if (!isAmbientMode) onLongClickClock else ({}),
+                isScreenAlwaysOn = uiState.isScreenAlwaysOn,
+                onToggleScreenAlwaysOn = if (!isAmbientMode) onToggleScreenAlwaysOn else ({}),
+                xauusdPrice = uiState.xauusdPrice,
+                xauusdHistory = uiState.xauusdHistory,
+                openPositionsText = uiState.openPositionsText,
+                onPanicClose = if (!isAmbientMode) onPanicClose else ({})
+            )
+        }
 
         Spacer(modifier = Modifier.weight(1f))
 
-        PrimaryAppRow(
-            phone = uiState.primaryApps.phone,
-            messages = uiState.primaryApps.messages,
-            camera = uiState.primaryApps.camera,
-            settings = uiState.primaryApps.settings,
-            onLaunchApp = onLaunchApp,
-        )
+        if (!isAmbientMode) {
+            PrimaryAppRow(
+                phone = uiState.primaryApps.phone,
+                messages = uiState.primaryApps.messages,
+                camera = uiState.primaryApps.camera,
+                settings = uiState.primaryApps.settings,
+                onLaunchApp = onLaunchApp,
+            )
 
-        Spacer(modifier = Modifier.height(24.dp))
-        SearchPill(onOpenDrawer = onOpenDrawer, onVoiceSearch = onVoiceSearch)
-        Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+            SearchPill(onOpenDrawer = onOpenDrawer, onVoiceSearch = onVoiceSearch)
+            Spacer(modifier = Modifier.height(32.dp))
+        }
     }
 }
 
@@ -104,67 +119,134 @@ private fun ClockAndStatus(
     onLongClickClock: () -> Unit,
     isScreenAlwaysOn: Boolean,
     onToggleScreenAlwaysOn: () -> Unit,
-    xauusdPrice: String
+    xauusdPrice: String,
+    xauusdHistory: List<Double>,
+    openPositionsText: String,
+    onPanicClose: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = {},
-                onLongClick = onLongClickClock
-            )
+        modifier = Modifier.fillMaxWidth()
     ) {
-        AnalogClock(size = 128.dp)
-        Spacer(modifier = Modifier.height(16.dp))
-        val dateText = SimpleDateFormat("EEE dd MMM", Locale.getDefault())
-            .format(java.util.Date())
-            .uppercase(Locale.getDefault())
-        val batteryContentDescription = stringResource(R.string.cd_battery, batteryPercent)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = dateText,
-                color = Color.White,
-                fontSize = 14.sp,
-                letterSpacing = 2.sp,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                text = "  ·  ",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
-            )
-            Text(
-                text = "$batteryPercent%",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
-                letterSpacing = 1.sp,
-                modifier = Modifier.semantics {
-                    contentDescription = batteryContentDescription
-                },
-            )
-            Text(
-                text = "  ·  ",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
-            )
-            Icon(
-                imageVector = if (isScreenAlwaysOn) Icons.Outlined.Lock else Icons.Outlined.LockOpen,
-                contentDescription = "Always on",
-                tint = if (isScreenAlwaysOn) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .size(16.dp)
-                    .clickable { onToggleScreenAlwaysOn() }
-            )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = onLongClickClock
+                )
+        ) {
+            AnalogClock(size = 128.dp)
+            Spacer(modifier = Modifier.height(16.dp))
+            val dateText = SimpleDateFormat("EEE dd MMM", Locale.getDefault())
+                .format(java.util.Date())
+                .uppercase(Locale.getDefault())
+            val batteryContentDescription = stringResource(R.string.cd_battery, batteryPercent)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = dateText,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    letterSpacing = 2.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = "  ·  ",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 14.sp,
+                )
+                Text(
+                    text = "$batteryPercent%",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 14.sp,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.semantics {
+                        contentDescription = batteryContentDescription
+                    },
+                )
+                Text(
+                    text = "  ·  ",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 14.sp,
+                )
+                Icon(
+                    imageVector = if (isScreenAlwaysOn) Icons.Outlined.Lock else Icons.Outlined.LockOpen,
+                    contentDescription = "Always on",
+                    tint = if (isScreenAlwaysOn) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clickable { onToggleScreenAlwaysOn() }
+                )
+            }
         }
         if (xauusdPrice.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = onPanicClose
+                    )
+                    .padding(8.dp)
+            ) {
+                Text(
+                    text = xauusdPrice,
+                    color = Color.LightGray,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                )
+                if (xauusdHistory.size >= 2) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Sparkline(
+                        history = xauusdHistory,
+                        modifier = Modifier
+                            .width(100.dp)
+                            .height(24.dp)
+                    )
+                }
+            }
+        }
+        if (openPositionsText.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = xauusdPrice,
-                color = Color.LightGray,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 1.sp,
+                text = openPositionsText,
+                color = Color.Red.copy(alpha = 0.8f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.5.sp,
+                modifier = Modifier
+                    .border(1.dp, Color.Red.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun Sparkline(history: List<Double>, modifier: Modifier = Modifier) {
+    if (history.size < 2) return
+    Canvas(modifier = modifier) {
+        val min = history.minOrNull() ?: 0.0
+        val max = history.maxOrNull() ?: 0.0
+        val range = max - min
+        val stepX = size.width / (history.size - 1)
+        val points = history.mapIndexed { idx, price ->
+            val x = idx * stepX
+            val y = if (range > 0.0) {
+                size.height - ((price - min) / range * size.height).toFloat()
+            } else {
+                size.height / 2f
+            }
+            Offset(x, y)
+        }
+        for (i in 0 until points.lastIndex) {
+            drawLine(
+                color = Color.White.copy(alpha = 0.6f),
+                start = points[i],
+                end = points[i + 1],
+                strokeWidth = 1.dp.toPx()
             )
         }
     }

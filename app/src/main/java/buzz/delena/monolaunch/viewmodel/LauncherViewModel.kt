@@ -42,6 +42,8 @@ data class LauncherUiState(
     val isLoadingApps: Boolean = true,
     val isScreenAlwaysOn: Boolean = false,
     val xauusdPrice: String = "",
+    val xauusdHistory: List<Double> = emptyList(),
+    val openPositionsText: String = "",
 )
 
 /**
@@ -318,58 +320,113 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun panicClose(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val response = callMcpTool("close_all_positions", org.json.JSONObject())
+            if (context is android.app.Activity) {
+                context.runOnUiThread {
+                    if (response != null) {
+                        android.widget.Toast.makeText(context, "Panic Close Executed!", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        android.widget.Toast.makeText(context, "Panic Close Failed", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun callMcpTool(toolName: String, arguments: org.json.JSONObject): String? {
+        return try {
+            val url = java.net.URL("http://127.0.0.1:3403/mcp")
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.connectTimeout = 3000
+            conn.readTimeout = 3000
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.doOutput = true
+
+            val jsonReq = org.json.JSONObject().apply {
+                put("jsonrpc", "2.0")
+                put("method", "tools/call")
+                put("id", 1)
+                put("params", org.json.JSONObject().apply {
+                    put("name", toolName)
+                    put("arguments", arguments)
+                })
+            }
+
+            conn.outputStream.use { os ->
+                java.io.OutputStreamWriter(os, "UTF-8").use { writer ->
+                    writer.write(jsonReq.toString())
+                    writer.flush()
+                }
+            }
+
+            if (conn.responseCode == java.net.HttpURLConnection.HTTP_OK) {
+                val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                val root = org.json.JSONObject(responseText)
+                val result = root.optJSONObject("result")
+                val content = result?.optJSONArray("content")
+                val textWrapper = content?.optJSONObject(0)
+                textWrapper?.optString("text")
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private fun startXauusdPriceStream() {
         viewModelScope.launch(Dispatchers.IO) {
             while (true) {
-                try {
-                    val url = java.net.URL("http://127.0.0.1:3403/mcp")
-                    val conn = url.openConnection() as java.net.HttpURLConnection
-                    conn.requestMethod = "POST"
-                    conn.connectTimeout = 3000
-                    conn.readTimeout = 3000
-                    conn.setRequestProperty("Content-Type", "application/json")
-                    conn.doOutput = true
-
-                    val jsonReq = org.json.JSONObject().apply {
-                        put("jsonrpc", "2.0")
-                        put("method", "tools/call")
-                        put("id", 1)
-                        put("params", org.json.JSONObject().apply {
-                            put("name", "get_symbol_info")
-                            put("arguments", org.json.JSONObject().apply {
-                                put("symbol", "XAUUSD")
-                            })
-                        })
-                    }
-
-                    conn.outputStream.use { os ->
-                        java.io.OutputStreamWriter(os, "UTF-8").use { writer ->
-                            writer.write(jsonReq.toString())
-                            writer.flush()
-                        }
-                    }
-
-                    if (conn.responseCode == java.net.HttpURLConnection.HTTP_OK) {
-                        val responseText = conn.inputStream.bufferedReader().use { it.readText() }
-                        val root = org.json.JSONObject(responseText)
-                        val result = root.optJSONObject("result")
-                        val content = result?.optJSONArray("content")
-                        val textWrapper = content?.optJSONObject(0)
-                        val text = textWrapper?.optString("text")
-                        if (text != null) {
-                            val data = org.json.JSONObject(text)
-                            val bid = data.optDouble("bid", 0.0)
-                            if (bid > 0.0) {
-                                val priceFormatted = String.format(java.util.Locale.US, "$%.2f", bid)
-                                _uiState.update { it.copy(xauusdPrice = "XAUUSD $priceFormatted") }
+                // 1. Fetch bid price
+                val infoArgs = org.json.JSONObject().apply { put("symbol", "XAUUSD") }
+                val infoText = callMcpTool("get_symbol_info", infoArgs)
+                if (infoText != null) {
+                    try {
+                        val data = org.json.JSONObject(infoText)
+                        val bid = data.optDouble("bid", 0.0)
+                        if (bid > 0.0) {
+                            val priceFormatted = String.format(java.util.Locale.US, "$%.2f", bid)
+                            val history = _uiState.value.xauusdHistory.toMutableList()
+                            history.add(bid)
+                            if (history.size > 50) {
+                                history.removeAt(0)
                             }
+                            _uiState.update { it.copy(xauusdPrice = "XAUUSD $priceFormatted", xauusdHistory = history) }
                         }
-                    } else {
-                        _uiState.update { it.copy(xauusdPrice = "") }
+                    } catch (e: Exception) {
+                        // ignore parse errors
                     }
-                } catch (e: Exception) {
+                } else {
                     _uiState.update { it.copy(xauusdPrice = "") }
                 }
+
+                // 2. Fetch open positions
+                val posText = callMcpTool("get_open_positions", org.json.JSONObject())
+                if (posText != null) {
+                    try {
+                        val root = org.json.JSONObject(posText)
+                        val dataArray = root.optJSONArray("data")
+                        val positionsList = dataArray ?: org.json.JSONArray(posText)
+                        if (positionsList.length() > 0) {
+                            val firstPos = positionsList.getJSONObject(0)
+                            val side = firstPos.optString("side", "buy")
+                            val vol = firstPos.optDouble("volume", 0.0)
+                            val openPrice = firstPos.optDouble("open_price", 0.0)
+                            val positionsText = String.format(java.util.Locale.US, "Alert: Active %s %.2f @ %.2f", side.uppercase(java.util.Locale.US), vol, openPrice)
+                            _uiState.update { it.copy(openPositionsText = positionsText) }
+                        } else {
+                            _uiState.update { it.copy(openPositionsText = "") }
+                        }
+                    } catch (e: Exception) {
+                        _uiState.update { it.copy(openPositionsText = "") }
+                    }
+                } else {
+                    _uiState.update { it.copy(openPositionsText = "") }
+                }
+
                 kotlinx.coroutines.delay(2000)
             }
         }
