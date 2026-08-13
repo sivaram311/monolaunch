@@ -12,11 +12,12 @@ backlog — start there before making changes.
 
 ## Status
 
-**Unbuilt.** Source was generated against the versions already proven on
-this machine (AGP 8.11.1, Kotlin 2.2.20, Gradle 8.14 — see
-`my-realme-launcher` for precedent), but this machine has no Android SDK
-or Gradle CLI installed, so nothing here has been compiled or run yet.
-Bolt 1 in `docs/aidlc/BOLTS.md` is exactly that first real build.
+**Builds successfully** (`gradlew assembleDebug`, verified 2026-08-13 —
+see `docs/aidlc/BOLTS.md` Bolt 1) against AGP 8.11.1, Kotlin 2.2.20,
+Gradle 8.14. Debug APKs are attached to
+[GitHub Releases](https://github.com/sivaram311/monolaunch/releases).
+**Not yet installed/run on a real device** — Bolt 3 in
+`docs/aidlc/BOLTS.md` is next.
 
 ## Stack
 

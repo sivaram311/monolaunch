@@ -7,15 +7,24 @@ change + evidence + docs update, small enough to review in one sitting.
 
 ## Bolt 1 — First real build (unblocks everything else)
 
-**Goal:** Open the project in Android Studio (or install Android SDK
-Platform 35 + set `ANDROID_HOME` for CLI `gradlew`), resolve any
-compile-time issues in the generated source (icon names, Compose BOM /
-AGP / Kotlin compatibility — see INCEPTION.md "Known risks"), and produce
-a debug APK.
+**Status: DONE (2026-08-13).** Installed Android SDK cmdline-tools +
+`platform-tools` + `platforms;android-35` + `build-tools;35.0.0` locally
+(`E:\Android\sdk`, `ANDROID_HOME` not set machine-wide — `local.properties`
+points at it, gitignored) and ran `gradlew.bat assembleDebug` — **build
+succeeded on the first real attempt**, no compile errors (the icon-name
+and Compose BOM/AGP/Kotlin-compatibility risks flagged in INCEPTION.md
+did not materialize). Output: `app/build/outputs/apk/debug/app-debug.apk`
+(~16 MB). `aapt dump badging` confirms `package=buzz.delena.monolaunch`,
+`versionCode=1`, `versionName=0.1.0`, `application-label=Monolaunch`.
 
-**Acceptance:** `gradlew assembleDebug` succeeds; `app-debug.apk` installs
-on a device/emulator via `adb install -r`; app launches and shows the Home
-screen without crashing.
+**Not yet done:** install + run on a real or emulated device — this Bolt
+only proves it *compiles and packages*, not that it *runs* correctly
+(Home/Drawer transition, gesture handling, icon rendering are all
+unverified at runtime). See Bolt 3.
+
+**Acceptance (compile-time half): met.** Runtime acceptance
+(`adb install -r`; app launches and shows the Home screen without
+crashing) still open — tracked under Bolt 3.
 
 ---
 

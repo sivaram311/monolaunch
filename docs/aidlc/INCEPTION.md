@@ -1,8 +1,8 @@
 # monolaunch — AI-DLC Inception Charter
 
-**Phase:** Inception (Day 1)
-**Status:** Source generated, unbuilt — no Gradle/Android SDK run on this machine yet
-**Next phase:** Construction (Bolt-sized diffs + evidence, starting with a real on-device build)
+**Phase:** Inception (Day 1) → Construction (Bolt 1 done)
+**Status:** Builds successfully (`gradlew assembleDebug`, 2026-08-13 — see `BOLTS.md` Bolt 1). Not yet run on a real device.
+**Next phase:** Construction (remaining Bolts — device install/run is next, see `BOLTS.md` Bolt 3)
 
 ---
 
@@ -42,10 +42,10 @@ user asked for, standalone.
 
 **Explicitly out of scope for this pass**
 
-- A real device/emulator build — this machine has no Android SDK or
-  Gradle CLI installed (`ANDROID_HOME` unset, no `gradle` on `PATH`); the
-  Gradle wrapper is present and the source is believed correct, but has
-  **not been compiled or run**. First Construction Bolt is exactly this.
+- Running on a real device/emulator — a local Android SDK was installed
+  (`E:\Android\sdk`, not machine-wide) and `gradlew assembleDebug`
+  **succeeded** 2026-08-13 (Bolt 1), producing a real debug APK. It has
+  not yet been installed and run on a device — that's Bolt 3.
 - Persisted frequent-app launch counts (session-only for now)
 - Widgets, folders, icon packs, gestures beyond swipe-up, notification
   badges, backup/restore
@@ -121,9 +121,9 @@ documented" principle (CONSCIOUS rule 5), not assumed:
 
 | Topic | Note |
 |-------|------|
-| Unbuilt | No Gradle/Android SDK on this machine as of Inception — first Construction Bolt must get a real `assembleDebug` (or equivalent, e.g. via Android Studio) before any of this is proven, not just believed-correct |
-| Icon library coverage | `androidx.compose.material:material-icons-extended` is assumed to include `Sms`, `PhotoCamera`, `Mic`, `Add`, `Call`, `Settings` outlined variants — verify on first build |
-| Compose BOM / AGP / Kotlin version compatibility | Versions chosen by matching the last proven-working sibling project (`my-realme-launcher`) plus one reasonably recent Compose BOM (`2024.10.01`); not independently re-verified against Google's compatibility map for this exact combination |
+| Not yet run on-device | `assembleDebug` succeeds (Bolt 1, 2026-08-13), but nothing has installed or launched on a real/emulated device yet — Home/Drawer gesture transition, icon rendering, and hit-testing during the drag animation are all unverified at runtime. Bolt 3 |
+| Icon library coverage | Resolved — `Sms`, `PhotoCamera`, `Mic`, `Add`, `Call`, `Settings` outlined variants all resolved from `androidx.compose.material:material-icons-extended` with no compile errors |
+| Compose BOM / AGP / Kotlin version compatibility | Resolved — `compose-bom:2024.10.01` + AGP 8.11.1 + Kotlin 2.2.20 compiled clean (35/35 tasks succeeded, no version-resolution conflicts) |
 | Frequent-apps persistence | Session-only (in-memory `Map` in the ViewModel) — resets on process death; Bolt 2 |
 | Touch handling during the Home⇄Drawer transition | Both screens are laid out simultaneously and offset via `graphicsLayer { translationY }`; hit-testing correctness while a drag is mid-flight has not been verified on a real device |
 | Primary-app resolution | Uses `Intent` resolution (`ACTION_DIAL`, `smsto:`, `ACTION_IMAGE_CAPTURE`, `ACTION_SETTINGS`) rather than hardcoded packages, matching `my-realme-launcher`'s approach — should degrade gracefully (icon dims, tap no-ops) if a role has no handler, but untested |
