@@ -63,3 +63,15 @@ Ordered list of AI-DLC Bolts for Construction. Each Bolt = one mergeable change 
 ## Bolt 10 — Monochrome AMOLED Icon Filter
 
 **Status: DONE (2026-08-13).** Implemented custom color saturation filter (0% saturation) on app icon images in the drawer and frequent list to enforce the pitch-black and white minimalist AMOLED aesthetic.
+
+---
+
+## Bolt 11 — Always-On Screen with Lock Icon Toggle
+
+**Status: DONE (2026-08-13).** Utilized Android's `WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON` dynamically controlled via Compose `LaunchedEffect` mapping to `isScreenAlwaysOn` setting. Toggle represented via visual lock/unlock outline status icons inside the Home Screen clock status bar. Value is persisted to SharedPreferences.
+
+---
+
+## Bolt 12 — Live XAUUSD Ticker via MT5-MCP
+
+**Status: DONE (2026-08-13).** Wired background polling coroutine in `LauncherViewModel` calling `get_symbol_info` tool via HTTP loopback at `127.0.0.1:3403/mcp` every 2 seconds. Displays active XAUUSD Bid price on the HomeScreen below the clock.
