@@ -32,6 +32,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -82,6 +83,17 @@ private fun LauncherApp(viewModel: LauncherViewModel) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isDragging by remember { mutableStateOf(false) }
+
+    val activity = context as? Activity
+    LaunchedEffect(uiState.isScreenAlwaysOn) {
+        activity?.runOnUiThread {
+            if (uiState.isScreenAlwaysOn) {
+                activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                activity.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        }
+    }
 
     var totalHomeDragDown by remember { mutableStateOf(0f) }
     var hasTriggeredNotificationSwipe by remember { mutableStateOf(false) }
@@ -169,6 +181,9 @@ private fun LauncherApp(viewModel: LauncherViewModel) {
                 },
                 onLongClickClock = {
                     showAboutDialog = true
+                },
+                onToggleScreenAlwaysOn = {
+                    viewModel.toggleScreenAlwaysOn(context)
                 },
                 modifier = Modifier.graphicsLayer { translationY = -animatedProgress * heightPx },
             )

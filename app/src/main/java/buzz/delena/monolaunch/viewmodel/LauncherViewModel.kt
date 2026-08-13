@@ -40,6 +40,8 @@ data class LauncherUiState(
     val searchQuery: String = "",
     val batteryPercent: Int = 0,
     val isLoadingApps: Boolean = true,
+    val isScreenAlwaysOn: Boolean = false,
+    val xauusdPrice: String = "",
 )
 
 /**
@@ -97,7 +99,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
         application.registerReceiver(packageReceiver, packageFilter)
 
+        val alwaysOn = prefs.getBoolean("is_screen_always_on", false)
+        _uiState.update { it.copy(isScreenAlwaysOn = alwaysOn) }
+
         loadApps()
+        startXauusdPriceStream()
     }
 
     fun loadApps() {
@@ -293,6 +299,79 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             Pair(version, code)
         } catch (e: Exception) {
             Pair("0.1.0", 1)
+        }
+    }
+
+    fun toggleScreenAlwaysOn(context: Context) {
+        val next = !_uiState.value.isScreenAlwaysOn
+        prefs.edit().putBoolean("is_screen_always_on", next).apply()
+        _uiState.update { it.copy(isScreenAlwaysOn = next) }
+        
+        if (context is android.app.Activity) {
+            context.runOnUiThread {
+                if (next) {
+                    context.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                } else {
+                    context.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
+            }
+        }
+    }
+
+    private fun startXauusdPriceStream() {
+        viewModelScope.launch(Dispatchers.IO) {
+            while (true) {
+                try {
+                    val url = java.net.URL("http://127.0.0.1:3403/mcp")
+                    val conn = url.openConnection() as java.net.HttpURLConnection
+                    conn.requestMethod = "POST"
+                    conn.connectTimeout = 3000
+                    conn.readTimeout = 3000
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    conn.doOutput = true
+
+                    val jsonReq = org.json.JSONObject().apply {
+                        put("jsonrpc", "2.0")
+                        put("method", "tools/call")
+                        put("id", 1)
+                        put("params", org.json.JSONObject().apply {
+                            put("name", "get_symbol_info")
+                            put("arguments", org.json.JSONObject().apply {
+                                put("symbol", "XAUUSD")
+                            })
+                        })
+                    }
+
+                    conn.outputStream.use { os ->
+                        java.io.OutputStreamWriter(os, "UTF-8").use { writer ->
+                            writer.write(jsonReq.toString())
+                            writer.flush()
+                        }
+                    }
+
+                    if (conn.responseCode == java.net.HttpURLConnection.HTTP_OK) {
+                        val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                        val root = org.json.JSONObject(responseText)
+                        val result = root.optJSONObject("result")
+                        val content = result?.optJSONArray("content")
+                        val textWrapper = content?.optJSONObject(0)
+                        val text = textWrapper?.optString("text")
+                        if (text != null) {
+                            val data = org.json.JSONObject(text)
+                            val bid = data.optDouble("bid", 0.0)
+                            if (bid > 0.0) {
+                                val priceFormatted = String.format(java.util.Locale.US, "$%.2f", bid)
+                                _uiState.update { it.copy(xauusdPrice = "XAUUSD $priceFormatted") }
+                            }
+                        }
+                    } else {
+                        _uiState.update { it.copy(xauusdPrice = "") }
+                    }
+                } catch (e: Exception) {
+                    _uiState.update { it.copy(xauusdPrice = "") }
+                }
+                kotlinx.coroutines.delay(2000)
+            }
         }
     }
 

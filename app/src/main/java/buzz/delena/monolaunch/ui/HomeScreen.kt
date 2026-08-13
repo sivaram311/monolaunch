@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Settings
@@ -61,6 +63,7 @@ fun HomeScreen(
     onLaunchApp: (AppInfo) -> Unit,
     onVoiceSearch: () -> Unit,
     onLongClickClock: () -> Unit,
+    onToggleScreenAlwaysOn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -70,7 +73,13 @@ fun HomeScreen(
             .padding(horizontal = 24.dp),
     ) {
         Spacer(modifier = Modifier.height(56.dp))
-        ClockAndStatus(batteryPercent = uiState.batteryPercent, onLongClickClock = onLongClickClock)
+        ClockAndStatus(
+            batteryPercent = uiState.batteryPercent,
+            onLongClickClock = onLongClickClock,
+            isScreenAlwaysOn = uiState.isScreenAlwaysOn,
+            onToggleScreenAlwaysOn = onToggleScreenAlwaysOn,
+            xauusdPrice = uiState.xauusdPrice
+        )
 
         Spacer(modifier = Modifier.weight(1f))
 
@@ -90,7 +99,13 @@ fun HomeScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ClockAndStatus(batteryPercent: Int, onLongClickClock: () -> Unit) {
+private fun ClockAndStatus(
+    batteryPercent: Int,
+    onLongClickClock: () -> Unit,
+    isScreenAlwaysOn: Boolean,
+    onToggleScreenAlwaysOn: () -> Unit,
+    xauusdPrice: String
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -127,6 +142,29 @@ private fun ClockAndStatus(batteryPercent: Int, onLongClickClock: () -> Unit) {
                 modifier = Modifier.semantics {
                     contentDescription = batteryContentDescription
                 },
+            )
+            Text(
+                text = "  ·  ",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 14.sp,
+            )
+            Icon(
+                imageVector = if (isScreenAlwaysOn) Icons.Outlined.Lock else Icons.Outlined.LockOpen,
+                contentDescription = "Always on",
+                tint = if (isScreenAlwaysOn) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable { onToggleScreenAlwaysOn() }
+            )
+        }
+        if (xauusdPrice.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = xauusdPrice,
+                color = Color.LightGray,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.sp,
             )
         }
     }
